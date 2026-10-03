@@ -120,7 +120,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
          playsinline webkit-playsinline muted preload="auto" loop></video>
 
   <iframe id="music"
-    src="https://www.youtube.com/embed/C0BG3B7aksU?enablejsapi=1&controls=0&playsinline=1&rel=0&loop=1&playlist=C0BG3B7aksU"
+    src="https://www.youtube.com/embed/HSLwh_KOVBk?enablejsapi=1&controls=0&playsinline=1&rel=0&loop=1&playlist=HSLwh_KOVBk"
     allow="autoplay; encrypted-media; picture-in-picture"
     title="Tender Strength"></iframe>
 
@@ -135,7 +135,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
   <div id="enter">
     <button id="start" type="button">ENTER</button>
   </div>
-  <div id="status"></div>
+  <div id="status">MUSIC PLAYING</div>
 </main>
 
 <script>
@@ -259,7 +259,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
     ytCommand('setVolume',[100]);
     ytCommand('playVideo');
 
-    if(!window._ytPlayer) status.textContent = '';
+    if(!window._ytPlayer) status.textContent = 'STARTING MUSIC…';
     status.classList.add('show');
     setTimeout(function(){ status.classList.remove('show'); },2300);
 
