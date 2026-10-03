@@ -3,115 +3,171 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Credit — Demo</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Credit Demo</title>
 <style>
-  *{box-sizing:border-box}
-  html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}
-  body{font-family:Arial,sans-serif}
-  .stage{
-    position:relative;
-    width:100vw;
-    height:100svh;
-    min-height:100vh;
-    overflow:hidden;
-    background:#000;
-  }
-  video.bg{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    object-position:center;
-    display:block;
-    background:#000;
-  }
-  .shade{
-    position:absolute;
-    inset:0;
-    background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,0) 45%,rgba(0,0,0,.25));
-    pointer-events:none;
-  }
-  .enter{
-    position:absolute;
-    inset:0;
-    display:grid;
-    place-items:center;
-    background:rgba(0,0,0,.28);
-    backdrop-filter:blur(2px);
-    transition:opacity .7s ease;
-    z-index:5;
-  }
-  .enter.hide{opacity:0;pointer-events:none}
-  button{
-    border:1px solid rgba(255,255,255,.7);
-    background:rgba(0,0,0,.35);
-    color:#fff;
-    padding:14px 30px;
-    border-radius:999px;
-    font-size:14px;
-    letter-spacing:.18em;
-    cursor:pointer;
-  }
-  button:focus-visible{outline:2px solid #fff;outline-offset:4px}
-  .yt{
-    position:absolute;
-    width:1px;height:1px;
-    left:-10px;bottom:-10px;
-    opacity:.01;
-    pointer-events:none;
-  }
-  @media (orientation:portrait){
-    video.bg{object-position:center}
-  }
-  @media (prefers-reduced-motion:reduce){
-    .enter{transition:none}
-  }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}
+body{font-family:Arial,sans-serif}
+#stage{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#000;
+}
+#visual{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center center;
+  display:block;
+  background:#000;
+}
+#music{
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  border:0;
+  opacity:0;
+  pointer-events:none;
+  z-index:1;
+}
+.shade{
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  background:linear-gradient(to bottom,rgba(0,0,0,.12),transparent 45%,rgba(0,0,0,.18));
+}
+#enter{
+  position:absolute;
+  inset:0;
+  z-index:3;
+  display:grid;
+  place-items:center;
+  background:rgba(0,0,0,.25);
+  transition:opacity .6s ease;
+}
+#enter.hidden{opacity:0;pointer-events:none}
+#start{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.85);
+  background:rgba(0,0,0,.42);
+  color:#fff;
+  border-radius:999px;
+  padding:15px 34px;
+  font-size:14px;
+  letter-spacing:.2em;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+#start:active{transform:scale(.97)}
+#status{
+  position:absolute;
+  left:50%;
+  bottom:max(24px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  z-index:4;
+  color:rgba(255,255,255,.8);
+  font-size:11px;
+  letter-spacing:.12em;
+  opacity:0;
+  transition:opacity .3s;
+  pointer-events:none;
+  white-space:nowrap;
+}
+#status.show{opacity:1}
 </style>
 </head>
 <body>
-<main class="stage">
-  <video class="bg" id="clip" src="kunnokz_ut1_team_clear.mp4"
+<main id="stage">
+  <video id="visual" src="kunnokz_ut1_team_clear.mp4"
          playsinline muted preload="auto" loop></video>
+
+  <!-- YouTube is kept as a full-size transparent layer so mobile browsers
+       treat it as a real media player after the user's tap. -->
+  <iframe id="music"
+    src="https://www.youtube.com/embed/C0BG3B7aksU?enablejsapi=1&controls=0&playsinline=1&rel=0&loop=1&playlist=C0BG3B7aksU"
+    allow="autoplay; encrypted-media; picture-in-picture"
+    title="lulu. — Mrs. GREEN APPLE"></iframe>
+
   <div class="shade"></div>
 
-  <div class="enter" id="enter">
+  <div id="enter">
     <button id="start" type="button">ENTER</button>
   </div>
-
-  <!-- YouTube player: music source requested by the user.
-       Browsers may block autoplay with sound; starting from the ENTER click avoids that in most cases. -->
-  <iframe class="yt" id="yt"
-    src="https://www.youtube.com/embed/C0BG3B7aksU?enablejsapi=1&autoplay=0&controls=0&loop=1&playlist=C0BG3B7aksU"
-    title="lulu. — Mrs. GREEN APPLE"
-    allow="autoplay; encrypted-media; picture-in-picture"
-    referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <div id="status">MUSIC PLAYING</div>
 </main>
 
 <script>
-const clip = document.getElementById('clip');
-const enter = document.getElementById('enter');
-const start = document.getElementById('start');
+(function(){
+  const visual = document.getElementById('visual');
+  const iframe = document.getElementById('music');
+  const enter = document.getElementById('enter');
+  const start = document.getElementById('start');
+  const status = document.getElementById('status');
 
-start.addEventListener('click', () => {
-  clip.muted = true;
-  clip.currentTime = 0;
-  clip.play().catch(() => {});
-  enter.classList.add('hide');
+  let ytReady = false;
 
-  // Start the YouTube player after a real user interaction.
-  const yt = document.getElementById('yt');
-  yt.contentWindow.postMessage(JSON.stringify({
-    event: 'command',
-    func: 'playVideo',
-    args: []
-  }), '*');
-});
+  // Load the official YouTube IFrame API.
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
 
-// If the browser restores the page, keep the visual clip playing.
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) clip.play().catch(() => {});
-});
+  window.onYouTubeIframeAPIReady = function(){
+    new YT.Player('music', {
+      events: {
+        onReady: function(event){
+          ytReady = true;
+          window._ytPlayer = event.target;
+        }
+      }
+    });
+  };
+
+  start.addEventListener('click', function(){
+    // This click is the user gesture that authorizes media playback.
+    visual.currentTime = 0;
+    visual.play().catch(function(){});
+
+    if(window._ytPlayer){
+      window._ytPlayer.unMute();
+      window._ytPlayer.setVolume(100);
+      window._ytPlayer.playVideo();
+      status.classList.add('show');
+      setTimeout(()=>status.classList.remove('show'),2200);
+    }else{
+      // Fallback if the API is still loading.
+      iframe.contentWindow.postMessage(JSON.stringify({
+        event:'command',
+        func:'unMute',
+        args:[]
+      }), '*');
+      iframe.contentWindow.postMessage(JSON.stringify({
+        event:'command',
+        func:'playVideo',
+        args:[]
+      }), '*');
+      status.textContent = 'STARTING MUSIC…';
+      status.classList.add('show');
+      setTimeout(()=>status.classList.remove('show'),2500);
+    }
+
+    enter.classList.add('hidden');
+  });
+
+  // Keep the visual clip running after returning to the page.
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) visual.play().catch(function(){});
+  });
+})();
 </script>
 </body>
 </html>
