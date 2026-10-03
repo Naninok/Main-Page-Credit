@@ -5,19 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
 <title>Credit Demo</title>
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}
-body{font-family:Arial,sans-serif}
+html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
+body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
 #stage{
   position:fixed;
   inset:0;
-  width:100%;
-  height:100%;
+  width:100vw;
+  height:100vh;
+  height:100dvh;
   overflow:hidden;
   background:#000;
 }
+#stage:fullscreen{width:100%;height:100%}
 #visual{
   position:absolute;
   inset:0;
@@ -30,10 +34,8 @@ body{font-family:Arial,sans-serif}
 }
 #music{
   position:absolute;
-  left:0;
-  top:0;
-  width:100%;
-  height:100%;
+  left:0;top:0;
+  width:100%;height:100%;
   border:0;
   opacity:0;
   pointer-events:none;
@@ -46,10 +48,36 @@ body{font-family:Arial,sans-serif}
   pointer-events:none;
   background:linear-gradient(to bottom,rgba(0,0,0,.12),transparent 45%,rgba(0,0,0,.18));
 }
-#enter{
+/* Tap layer: tap anywhere to pause / resume */
+#tap{
   position:absolute;
   inset:0;
   z-index:3;
+  -webkit-tap-highlight-color:transparent;
+  cursor:pointer;
+}
+#icon{
+  position:absolute;
+  left:50%;top:50%;
+  width:84px;height:84px;
+  margin:-42px 0 0 -42px;
+  z-index:4;
+  border-radius:50%;
+  background:rgba(0,0,0,.45);
+  display:grid;
+  place-items:center;
+  opacity:0;
+  transform:scale(.8);
+  pointer-events:none;
+  transition:opacity .25s ease,transform .25s ease;
+}
+#icon.show{opacity:1;transform:scale(1)}
+#icon.keep{opacity:.9;transform:scale(1)}
+#icon svg{width:36px;height:36px;fill:#fff}
+#enter{
+  position:absolute;
+  inset:0;
+  z-index:5;
   display:grid;
   place-items:center;
   background:rgba(0,0,0,.25);
@@ -74,7 +102,7 @@ body{font-family:Arial,sans-serif}
   left:50%;
   bottom:max(24px,env(safe-area-inset-bottom));
   transform:translateX(-50%);
-  z-index:4;
+  z-index:6;
   color:rgba(255,255,255,.8);
   font-size:11px;
   letter-spacing:.12em;
@@ -89,16 +117,20 @@ body{font-family:Arial,sans-serif}
 <body>
 <main id="stage">
   <video id="visual" src="kunnokz_ut1_team_clear.mp4"
-         playsinline muted preload="auto" loop></video>
+         playsinline webkit-playsinline muted preload="auto" loop></video>
 
-  <!-- YouTube is kept as a full-size transparent layer so mobile browsers
-       treat it as a real media player after the user's tap. -->
   <iframe id="music"
     src="https://www.youtube.com/embed/C0BG3B7aksU?enablejsapi=1&controls=0&playsinline=1&rel=0&loop=1&playlist=C0BG3B7aksU"
     allow="autoplay; encrypted-media; picture-in-picture"
     title="lulu. — Mrs. GREEN APPLE"></iframe>
 
   <div class="shade"></div>
+  <div id="tap"></div>
+
+  <div id="icon">
+    <svg id="icoPause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    <svg id="icoPlay" viewBox="0 0 24 24" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+  </div>
 
   <div id="enter">
     <button id="start" type="button">ENTER</button>
@@ -108,15 +140,22 @@ body{font-family:Arial,sans-serif}
 
 <script>
 (function(){
+  const stage  = document.getElementById('stage');
   const visual = document.getElementById('visual');
   const iframe = document.getElementById('music');
-  const enter = document.getElementById('enter');
-  const start = document.getElementById('start');
+  const enter  = document.getElementById('enter');
+  const start  = document.getElementById('start');
   const status = document.getElementById('status');
+  const tap    = document.getElementById('tap');
+  const icon   = document.getElementById('icon');
+  const icoPause = document.getElementById('icoPause');
+  const icoPlay  = document.getElementById('icoPlay');
 
-  let ytReady = false;
+  let started = false;
+  let playing = false;
+  let iconTimer;
 
-  // Load the official YouTube IFrame API.
+  // ---- YouTube IFrame API ----
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(tag);
@@ -124,48 +163,120 @@ body{font-family:Arial,sans-serif}
   window.onYouTubeIframeAPIReady = function(){
     new YT.Player('music', {
       events: {
-        onReady: function(event){
-          ytReady = true;
-          window._ytPlayer = event.target;
-        }
+        onReady: function(e){ window._ytPlayer = e.target; }
       }
     });
   };
 
+  function ytCommand(func, args){
+    if(window._ytPlayer){
+      try{
+        if(func==='unMute') window._ytPlayer.unMute();
+        else if(func==='setVolume') window._ytPlayer.setVolume(args[0]);
+        else if(func==='playVideo') window._ytPlayer.playVideo();
+        else if(func==='pauseVideo') window._ytPlayer.pauseVideo();
+        return;
+      }catch(_){}
+    }
+    iframe.contentWindow.postMessage(JSON.stringify({
+      event:'command', func:func, args:args||[]
+    }), '*');
+  }
+
+  // ---- Fullscreen (Android / desktop; iPhone Safari does not support it) ----
+  function goFullscreen(){
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if(req){
+      try{
+        const r = req.call(el, {navigationUI:'hide'});
+        if(r && r.then){
+          r.then(function(){
+            // Lock to landscape/portrait automatically if supported
+            if(screen.orientation && screen.orientation.lock){
+              screen.orientation.lock('natural').catch(function(){});
+            }
+          }).catch(function(){});
+        }
+      }catch(_){}
+    }
+  }
+
+  // ---- Play / pause ----
+  function flashIcon(isPlaying){
+    icoPause.style.display = isPlaying ? 'none' : 'block';
+    icoPlay.style.display  = isPlaying ? 'block' : 'none';
+    clearTimeout(iconTimer);
+    icon.classList.remove('keep');
+    icon.classList.add('show');
+    if(isPlaying){
+      iconTimer = setTimeout(function(){ icon.classList.remove('show'); }, 700);
+    }else{
+      // while paused keep the pause symbol visible (shows ▶ hint)
+      icoPause.style.display = 'none';
+      icoPlay.style.display  = 'block';
+      icon.classList.add('keep');
+    }
+  }
+
+  function play(){
+    playing = true;
+    visual.play().catch(function(){});
+    ytCommand('playVideo');
+    icoPause.style.display = 'block';
+    icoPlay.style.display  = 'none';
+    clearTimeout(iconTimer);
+    icon.classList.remove('keep');
+    icon.classList.add('show');
+    iconTimer = setTimeout(function(){ icon.classList.remove('show'); }, 600);
+  }
+
+  function pause(){
+    playing = false;
+    visual.pause();
+    ytCommand('pauseVideo');
+    icoPause.style.display = 'none';
+    icoPlay.style.display  = 'block';
+    clearTimeout(iconTimer);
+    icon.classList.add('show','keep');
+  }
+
+  function toggle(){
+    if(!started) return;
+    playing ? pause() : play();
+  }
+
+  // ---- ENTER ----
   start.addEventListener('click', function(){
-    // This click is the user gesture that authorizes media playback.
+    started = true;
+    goFullscreen();
+
     visual.currentTime = 0;
     visual.play().catch(function(){});
+    playing = true;
 
-    if(window._ytPlayer){
-      window._ytPlayer.unMute();
-      window._ytPlayer.setVolume(100);
-      window._ytPlayer.playVideo();
-      status.classList.add('show');
-      setTimeout(()=>status.classList.remove('show'),2200);
-    }else{
-      // Fallback if the API is still loading.
-      iframe.contentWindow.postMessage(JSON.stringify({
-        event:'command',
-        func:'unMute',
-        args:[]
-      }), '*');
-      iframe.contentWindow.postMessage(JSON.stringify({
-        event:'command',
-        func:'playVideo',
-        args:[]
-      }), '*');
-      status.textContent = 'STARTING MUSIC…';
-      status.classList.add('show');
-      setTimeout(()=>status.classList.remove('show'),2500);
-    }
+    ytCommand('unMute');
+    ytCommand('setVolume',[100]);
+    ytCommand('playVideo');
+
+    if(!window._ytPlayer) status.textContent = 'STARTING MUSIC…';
+    status.classList.add('show');
+    setTimeout(function(){ status.classList.remove('show'); },2300);
 
     enter.classList.add('hidden');
   });
 
-  // Keep the visual clip running after returning to the page.
+  // ---- Tap anywhere to pause / resume ----
+  tap.addEventListener('click', toggle);
+
+  // Space bar on desktop
+  document.addEventListener('keydown', function(e){
+    if(e.code==='Space'){ e.preventDefault(); toggle(); }
+  });
+
+  // Keep clip running after returning to the page (only if not paused by user)
   document.addEventListener('visibilitychange', function(){
-    if(!document.hidden) visual.play().catch(function(){});
+    if(!document.hidden && started && playing) visual.play().catch(function(){});
   });
 })();
 </script>
