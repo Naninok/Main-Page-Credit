@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
-<title>Sign Card</title>
+<title>Credit Demo</title>
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:manipulation}
@@ -120,7 +120,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
          playsinline webkit-playsinline muted preload="auto" loop></video>
 
   <iframe id="music"
-    src="Youtube link"
+    src="https://www.youtube.com/embed/C0BG3B7aksU?enablejsapi=1&controls=0&playsinline=1&rel=0&loop=1&playlist=C0BG3B7aksU"
     allow="autoplay; encrypted-media; picture-in-picture"
     title="lulu. — Mrs. GREEN APPLE"></iframe>
 
@@ -259,7 +259,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
     ytCommand('setVolume',[100]);
     ytCommand('playVideo');
 
-    if(!window._ytPlayer) status.textContent = 'STARTING MUSIC…';
+    if(!window._ytPlayer) status.textContent = '';
     status.classList.add('show');
     setTimeout(function(){ status.classList.remove('show'); },2300);
 
