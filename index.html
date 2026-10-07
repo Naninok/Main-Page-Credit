@@ -32,15 +32,6 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
   display:block;
   background:#000;
 }
-#music{
-  position:absolute;
-  left:0;top:0;
-  width:100%;height:100%;
-  border:0;
-  opacity:0;
-  pointer-events:none;
-  z-index:1;
-}
 .shade{
   position:absolute;
   inset:0;
@@ -119,10 +110,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
   <video id="visual" src="kunnokz_ut1_team_clear.mp4"
          playsinline webkit-playsinline muted preload="auto" loop></video>
 
-  <iframe id="music"
-    src="https://www.youtube.com/embed/HSLwh_KOVBk?enablejsapi=1&controls=0&playsinline=1&rel=0&loop=1&playlist=HSLwh_KOVBk"
-    allow="autoplay; encrypted-media; picture-in-picture"
-    title="Tender Strength"></iframe>
+  <audio id="music" src="music.mp3" loop preload="auto" playsinline></audio>
 
   <div class="shade"></div>
   <div id="tap"></div>
@@ -142,7 +130,7 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
 (function(){
   const stage  = document.getElementById('stage');
   const visual = document.getElementById('visual');
-  const iframe = document.getElementById('music');
+  const iframe = document.getElementById('music'); // <audio>
   const enter  = document.getElementById('enter');
   const start  = document.getElementById('start');
   const status = document.getElementById('status');
@@ -155,32 +143,11 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
   let playing = false;
   let iconTimer;
 
-  // ---- YouTube IFrame API ----
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
-
-  window.onYouTubeIframeAPIReady = function(){
-    new YT.Player('music', {
-      events: {
-        onReady: function(e){ window._ytPlayer = e.target; }
-      }
-    });
-  };
-
-  function ytCommand(func, args){
-    if(window._ytPlayer){
-      try{
-        if(func==='unMute') window._ytPlayer.unMute();
-        else if(func==='setVolume') window._ytPlayer.setVolume(args[0]);
-        else if(func==='playVideo') window._ytPlayer.playVideo();
-        else if(func==='pauseVideo') window._ytPlayer.pauseVideo();
-        return;
-      }catch(_){}
-    }
-    iframe.contentWindow.postMessage(JSON.stringify({
-      event:'command', func:func, args:args||[]
-    }), '*');
+  // ---- Music (local file, no ads) ----
+  iframe.volume = 1;
+  function ytCommand(func){
+    if(func==='playVideo') iframe.play().catch(function(){});
+    else if(func==='pauseVideo') iframe.pause();
   }
 
   // ---- Fullscreen (Android / desktop; iPhone Safari does not support it) ----
@@ -255,11 +222,11 @@ body{font-family:Arial,sans-serif;-webkit-user-select:none;user-select:none}
     visual.play().catch(function(){});
     playing = true;
 
-    ytCommand('unMute');
-    ytCommand('setVolume',[100]);
+    iframe.currentTime = 0;
+    iframe.muted = false;
+    iframe.volume = 1;
     ytCommand('playVideo');
 
-    if(!window._ytPlayer) status.textContent = 'STARTING MUSIC…';
     status.classList.add('show');
     setTimeout(function(){ status.classList.remove('show'); },2300);
 
